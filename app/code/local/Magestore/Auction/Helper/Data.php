@@ -2,9 +2,34 @@
 
 class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
 
+    public function buyPackage($customerId, $productAuctionId){
+        $buyPackage = Mage::getModel('auction/buypackage')->getCollection()
+        ->addFieldToFilter('customer_id', $customerId)
+        ->addFieldToFilter('productauction_id', $productAuctionId)
+        ->getFirstItem();
+        if($buyPackage->getId()){
+            return true;
+        }else{
+            return false;
+        }
+
+    }
+    public function isAuctionPackage($sku) {
+        $prefix = substr($sku, 0,7);
+        if($prefix == "auction"){
+            return true;
+        }else{
+            return false;
+        }
+    }
+
+    public function getProductAuctionIdBySku($sku) {
+        $product_auction_id = trim($sku,"auction_");
+        return $product_auction_id;
+    }
+
     public function getAuctionUrl() {
         $url = $this->_getUrl("auction/index", array());
-
         return $url;
     }
 

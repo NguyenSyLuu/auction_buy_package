@@ -1,7 +1,11 @@
 <?php
 
 class Magestore_Auction_IndexController extends Mage_Core_Controller_Front_Action {
-
+    public function testAction() {
+        $productAuction = Mage::getModel('auction/productauction')->load(1);
+        $oldPrice = $productAuction->getInitPrice();
+        Zend_Debug::dump($productAuction->getInitPrice());
+    }
     public function indexAction() {
         if (Mage::getStoreConfig('auction/general/bidder_status') != 1) {
             $this->_redirect('', array());
@@ -415,9 +419,22 @@ class Magestore_Auction_IndexController extends Mage_Core_Controller_Front_Actio
             return;
         }
 
+
+
         $bidType = $this->getRequest()->getParam('bid_type');
         $data['price'] = $this->getRequest()->getParam('bid_price');
         $data['product_id'] = $this->getRequest()->getParam('product_id');
+        $auction = Mage::getModel('auction/productauction')->loadAuctionByProductId($data['product_id']);
+
+        //start customize check buy package
+        $buyPackage = Mage::getModel('auction/buypackage')->getCollection()
+            ->addFieldToFilter('customer_id', $customerSession->getId())
+            ->addFieldToFilter('productauction_id', $auction->getId())
+            ->getFirstItem();
+        if(!$buyPackage->getId()){
+            return;
+        }
+        //end customize
 
         if (!isset($data['price']) || !$data['price']) {
             $result .= $notice->getNoticeError($_helper->__('You bid price is invalid.'));
@@ -448,7 +465,7 @@ class Magestore_Auction_IndexController extends Mage_Core_Controller_Front_Actio
             }
         }
         $product = Mage::getModel('catalog/product')->load($data['product_id']);
-        $auction = Mage::getModel('auction/productauction')->loadAuctionByProductId($data['product_id']);
+
 
         if ($auction->getStatus() == 5) { //complete auction
             $result .= $notice->getNoticeError($_helper->__('Completed Auction'));

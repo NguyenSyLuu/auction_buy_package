@@ -376,6 +376,39 @@ class Magestore_Auction_Model_Event {
             $quote = Mage::getModel('sales/quote')->load($quoteId);
             $items = $quote->getAllItems();
             foreach ($items as $item) {
+
+                //               start customize
+                $orderId = $order->getId();
+
+                $productId = $item->getProduct()->getId();
+                $sku = Mage::getModel('catalog/product')->load($productId)->getSku();
+                if(Mage::helper('auction')->isAuctionPackage($sku)){
+                    $customerId = Mage::getSingleton('customer/session')->getId();
+                    $qty = $item->getQty();
+                    $vitualProductPrice = 10;
+                    $buy_data = array(
+                        'customer_id' => $customerId,
+                        'product_id'  => $productId,
+                        'sku' => $sku,
+                        'qty' => $qty,
+                        'order_id' => $orderId,
+                    );
+                    Mage::getModel('auction/buypackage')->setData($buy_data)->save();
+                    $productAuctionId = Mage::helper('auction')->getProductAuctionIdBySku($sku);
+                    $productAuction = Mage::getModel('auction/productauction')->load($productAuctionId);
+                    $bidAuction = Mage::getModel('auction/auction')->getCollection()
+                        ->addFieldToFilter('productauction_id', $productAuctionId)
+                        ->setOrder('auctionbid_id', 'DESC')
+                        ->getFirstItem();
+//                    $oldPrice = $bidAuction->getPrice();
+                    $oldStartPrice = $productAuction->setPrice();
+                    $newStartPrice = $oldStartPrice - $vitualProductPrice*$qty;
+                    if($newStartPrice < 0) $newStartPrice = 0;
+
+                }
+
+                //               end customize
+
                 $bidId = $item->getOptionByCode('bid_id');
                 if ($bidId != null && $bidId->getValue() > 0) {
                     try {

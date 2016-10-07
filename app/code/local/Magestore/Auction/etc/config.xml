@@ -2,7 +2,7 @@
 <config>
     <modules>
         <Magestore_Auction>
-            <version>2.2.0</version>
+            <version>2.2.1</version>
         </Magestore_Auction>
     </modules>
     <frontend>
@@ -186,6 +186,10 @@
                     <email>
                         <table>auction_email</table>
                     </email>
+
+                    <buypackage>
+                        <table>auction_buy_package</table>
+                    </buypackage>
                 </entities>
             </auction_mysql4>
             <tax>
