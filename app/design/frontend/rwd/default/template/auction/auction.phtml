@@ -74,7 +74,7 @@
                                 <?php
                                 $customerId =  $customerSession->getId();
                                 $customer = Mage::getModel('customer/customer')->load($customerId);
-                                $buyPackage = 0;//Mage::helper('auction')->buyPackage($customerId, $auction->getId());
+                                $buyPackage = Mage::helper('auction')->buyPackage($customerId, $auction->getId());
                                 if(!$buyPackage):?>
                                     <script>
                                         $('auction_bid_button').disable();

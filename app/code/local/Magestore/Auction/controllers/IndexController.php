@@ -2,9 +2,14 @@
 
 class Magestore_Auction_IndexController extends Mage_Core_Controller_Front_Action {
     public function testAction() {
-        $productAuction = Mage::getModel('auction/productauction')->load(1);
-        $oldPrice = $productAuction->getInitPrice();
-        Zend_Debug::dump($productAuction->getInitPrice());
+        $timestamp = Mage::getModel('core/date')->timestamp(time());
+        $productAuctionId = 1;
+        $productAuction = Mage::getModel('auction/productauction')->load($productAuctionId);
+        $date = $productAuction->getEndDate();
+        $time = $productAuction->getEndTime();
+        $end = strtotime($date.$time);
+        echo date("Y-m-d H:i:s", $timestamp);
+        Zend_Debug::dump($timestamp);
     }
     public function indexAction() {
         if (Mage::getStoreConfig('auction/general/bidder_status') != 1) {
@@ -427,11 +432,11 @@ class Magestore_Auction_IndexController extends Mage_Core_Controller_Front_Actio
         $auction = Mage::getModel('auction/productauction')->loadAuctionByProductId($data['product_id']);
 
         //start customize check buy package
-        $buyPackage = Mage::getModel('auction/buypackage')->getCollection()
-            ->addFieldToFilter('customer_id', $customerSession->getId())
-            ->addFieldToFilter('productauction_id', $auction->getId())
-            ->getFirstItem();
-        if(!$buyPackage->getId()){
+
+        $buyPackage = Mage::helper('auction')->buyPackage($customerSession->getId(), $auction->getId());
+        if(!$buyPackage){
+            $result .= $notice->getNoticeError($_helper->__('You need buy Auction package to bid'));
+            $this->getResponse()->setBody($result);
             return;
         }
         //end customize

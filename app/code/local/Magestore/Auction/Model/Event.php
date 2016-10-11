@@ -1,16 +1,55 @@
 <?php
 
-class Magestore_Auction_Model_Event {
+class Magestore_Auction_Model_Event
+{
+    //start customize (save start price when invoice in order backend)
+    public function sales_order_invoice_pay($observer)
+    {
+        $order = $observer->getEvent()->getInvoice()->getOrder();
+        $invoice = $observer->getEvent()->getInvoice();
+        $customerId = $order->getCustomerId();
+        foreach ($invoice->getAllItems() as $item) {
+            $productId = $item->getProductId();
+            $sku = Mage::getModel('catalog/product')->load($productId)->getSku();
+            $isAuctionPackage = Mage::helper('auction')->isAuctionPackage($sku);
+            if ($isAuctionPackage) {
+                $qty = $item->getQty();
+                $vitualProductPrice = 10;
+//                        $vitualProductPrice = $item->getProduct()->getPrice();
+                $buy_data = array(
+                    'customer_id' => $customerId,
+                    'product_id' => $productId,
+                    'sku' => $sku,
+                    'qty' => $qty,
+                    'order_id' => $order->getId(),
+                );
+                Mage::getModel('auction/buypackage')->setData($buy_data)->save();
+                $productAuctionId = Mage::helper('auction')->getProductAuctionIdBySku($sku);
+                $productAuction = Mage::getModel('auction/productauction')->load($productAuctionId);
+                if ($productAuction->getStatus < 4) {
+                    $oldStartPrice = $productAuction->getInitPrice();
+                    $newStartPrice = $oldStartPrice - $vitualProductPrice * $qty;
+                    if ($newStartPrice < 0) $newStartPrice = 0;
+                    $productAuction->setInitPrice($newStartPrice)->save();
+                }
+            }
 
-    public function getlink() {
+        }
+    }
+
+    //end customize
+
+    public function getlink()
+    {
         $link = Mage::app()->getRequest()->getRouteName() .
-                Mage::app()->getRequest()->getControllerName() .
-                Mage::app()->getRequest()->getActionName() .
-                Mage::app()->getRequest()->getModuleName();
+            Mage::app()->getRequest()->getControllerName() .
+            Mage::app()->getRequest()->getActionName() .
+            Mage::app()->getRequest()->getModuleName();
         return $link;
     }
 
-    public function catalog_product_collection_apply_limitations_before($observer) {
+    public function catalog_product_collection_apply_limitations_before($observer)
+    {
         if (!Mage::registry('load_list_auction')) {
             Mage::register('load_list_auction', '1');
             if ($this->getlink() != 'auctionindexindexauction')
@@ -21,38 +60,40 @@ class Magestore_Auction_Model_Event {
         }
     }
 
-    public function catalog_product_save_after($observer) {
+    public function catalog_product_save_after($observer)
+    {
         $product = $observer->getProduct();
 
         $auctions = Mage::getResourceModel('auction/productauction_collection')
-                ->addFieldToFilter('product_id', $product->getId());
+            ->addFieldToFilter('product_id', $product->getId());
         try {
             if (count($auctions))
                 foreach ($auctions as $auction) {
                     if ($auction->getProductName() != $product->getName())
                         $auction->setProductName($product->getName())
-                                ->save();
+                            ->save();
                 }
 
             $bids = Mage::getResourceModel('auction/auction_collection')
-                    ->addFieldToFilter('product_id', $product->getId());
+                ->addFieldToFilter('product_id', $product->getId());
 
             if (count($bids))
                 foreach ($bids as $bid) {
                     if ($bid->getProductName() != $product->getName())
                         $bid->setProductName($product->getName())
-                                ->save();
+                            ->save();
                 }
         } catch (Exception $e) {
-            
+
         }
     }
 
-    public function customer_save_after($observer) {
+    public function customer_save_after($observer)
+    {
         $customer = $observer->getCustomer();
 
         $bids = Mage::getResourceModel('auction/auction_collection')
-                ->addFieldToFilter('customer_id', $customer->getId());
+            ->addFieldToFilter('customer_id', $customer->getId());
 
         $bidderNameType = Mage::getStoreConfig('auction/general/bidder_name_type');
         $changed = false;
@@ -79,14 +120,15 @@ class Magestore_Auction_Model_Event {
                 }
             if ($changed && $bidderNameType == '3') {
                 $customer->setBidderName($customer->getName())
-                        ->save();
+                    ->save();
             }
         } catch (Exception $e) {
-            
+
         }
     }
 
-    public function customer_login($observer) {
+    public function customer_login($observer)
+    {
         $backUrl = Mage::getSingleton('core/session')->getData('auction_backurl');
         if ($backUrl) {
             Mage::getSingleton('customer/session')->setBeforeAuthUrl($backUrl);
@@ -94,11 +136,13 @@ class Magestore_Auction_Model_Event {
         }
     }
 
-    public function update() {
+    public function update()
+    {
         Mage::helper('auction')->updateAuctionStatus();
     }
 
-    public function autobid($auctionid = null) {
+    public function autobid($auctionid = null)
+    {
         if ($auctionid)
             Mage::helper('auction')->updateAuctionStatus($auctionid);
         else
@@ -107,7 +151,7 @@ class Magestore_Auction_Model_Event {
             return;
         }
         $auctions = Mage::getModel('auction/productauction')->getCollection()
-                ->addFieldToFilter('status', 4);
+            ->addFieldToFilter('status', 4);
 
         if ($auctionid) {
             $auctions->addFieldToFilter('productauction_id', $auctionid);
@@ -120,8 +164,8 @@ class Magestore_Auction_Model_Event {
             $price = $auction->getMinNextPrice();
             // get all auto_bid of productauction
             $autobids = Mage::getModel('auction/autobid')->getCollection()
-                    ->addFieldToFilter('productauction_id', $auction->getId())
-                    ->setOrder('created_time', 'ASC');
+                ->addFieldToFilter('productauction_id', $auction->getId())
+                ->setOrder('created_time', 'ASC');
 
             //last auto bid run
             $lastautobid = $auction->getLastautobid();
@@ -140,8 +184,8 @@ class Magestore_Auction_Model_Event {
             } else {
                 $model = Mage::getModel('auction/lastautobid');
                 $model->setProductauctionId($auction->getId())
-                        ->setAutobidId($autobid->getId())
-                        ->save();
+                    ->setAutobidId($autobid->getId())
+                    ->save();
             }
 
             $lastAuctionBid = $auction->getLastBid();
@@ -171,14 +215,14 @@ class Magestore_Auction_Model_Event {
                 //end bidder name
 
                 $auctionbid->setData($data)
-                        ->setStoreId($store_id);
-                
+                    ->setStoreId($store_id);
+
                 //get autobids greater  current price (before save)
-                $customersId = Mage::getModel('auction/email')->getCollection()->addFieldToFilter('overautobid',0)->getAllCustomerIds();
+                $customersId = Mage::getModel('auction/email')->getCollection()->addFieldToFilter('overautobid', 0)->getAllCustomerIds();
                 $activeAutobids = Mage::getModel('auction/autobid')->getCollection()
-                        ->addFieldToFilter('productauction_id', $auction->getProductauctionId())
-                        ->addFieldToFilter('price', array('gteq' => $auction->getMinNextPrice()));
-                if(count($customersId)>0){
+                    ->addFieldToFilter('productauction_id', $auction->getProductauctionId())
+                    ->addFieldToFilter('price', array('gteq' => $auction->getMinNextPrice()));
+                if (count($customersId) > 0) {
                     $activeAutobids->addFieldToFilter('customer_id', array('nin' => $customersId));
                 }
                 $autobidIds = array();
@@ -191,11 +235,11 @@ class Magestore_Auction_Model_Event {
 
                 // fix not reset extend time when autobid
                 if (strtotime($auction->getEndDate() . ' ' . $auction->getEndTime()) - $timestamp <= $auction->getLimitTime()) {
-                    $newTime = $timestamp + (int) $auction->getLimitTime();
+                    $newTime = $timestamp + (int)$auction->getLimitTime();
                     $new_endDate = date('Y-m-d', $newTime);
                     $new_endTime = date('H:i:s', $newTime);
                     $auction->setEndDate($new_endDate)
-                            ->setEndTime($new_endTime);
+                        ->setEndTime($new_endTime);
                     $auction->save();
                 }
 
@@ -235,9 +279,9 @@ class Magestore_Auction_Model_Event {
 
                 //get autobids over
                 $overAutobids = Mage::getModel('auction/autobid')->getCollection()
-                        ->addFieldToFilter('productauction_id', $auction->getProductauctionId())
-                        ->addFieldToFilter('price', array('lt' => $auction->getMinNextPrice()))
-                        ->addFieldToFilter('autobid_id', array('in' => $autobidIds));
+                    ->addFieldToFilter('productauction_id', $auction->getProductauctionId())
+                    ->addFieldToFilter('price', array('lt' => $auction->getMinNextPrice()))
+                    ->addFieldToFilter('autobid_id', array('in' => $autobidIds));
 
                 if (count($overAutobids))
                     $auctionbid->noticeOverautobid($overAutobids);
@@ -245,7 +289,8 @@ class Magestore_Auction_Model_Event {
         }
     }
 
-    protected function _getAuctionInfo($auction, $lastBid = null, $tmpl = null) {
+    protected function _getAuctionInfo($auction, $lastBid = null, $tmpl = null)
+    {
         $lastBid = $lastBid ? $lastBid : $auction->getLastBid();
         $tmpl = $tmpl ? $tmpl : 'auctioninfo';
         $auction->setLastBid($lastBid);
@@ -256,24 +301,26 @@ class Magestore_Auction_Model_Event {
         return $block->toHtml();
     }
 
-    protected function _getPriceAuction($auction, $lastBid = null) {
+    protected function _getPriceAuction($auction, $lastBid = null)
+    {
         $auction->setCurrentPrice(null)
-                ->setMinNextPrice(null)
-                ->setMaxNextPrice(null);
+            ->setMinNextPrice(null)
+            ->setMaxNextPrice(null);
         $min_next_price = $auction->getMinNextPrice();
         $max_next_price = $auction->getMaxNextPrice();
         $max_condition = $max_next_price ? ' ' . Mage::helper('core')->__('and') . ' ' . Mage::helper('core')->currency($max_next_price) : '';
         if ($max_condition)
             $html = '(' . Mage::helper('core')->__('Enter an amount from') . ' ' . Mage::helper('core')->currency($min_next_price) . $max_condition . ')';
         else
-            $html = '(' . Mage::helper('core')->__('Enter %s or more',Mage::helper('core')->currency($min_next_price)) . ')';
+            $html = '(' . Mage::helper('core')->__('Enter %s or more', Mage::helper('core')->currency($min_next_price)) . ')';
         return $html;
     }
 
-    public function catalog_product_is_salable_after($observer) {
+    public function catalog_product_is_salable_after($observer)
+    {
         $links = Mage::app()->getRequest()->getRouteName() .
-                Mage::app()->getRequest()->getControllerName() .
-                Mage::app()->getRequest()->getActionName();
+            Mage::app()->getRequest()->getControllerName() .
+            Mage::app()->getRequest()->getActionName();
         if ($links != 'catalogcategoryview' && $links != 'catalogsearchresultindex') {
             $observer->getEvent()->getControllerAction();
             $product = $observer->getProduct();
@@ -286,7 +333,8 @@ class Magestore_Auction_Model_Event {
         return $this;
     }
 
-    public function checkout_cart_add($observer) {
+    public function checkout_cart_add($observer)
+    {
         if (!Mage::registry('add_product')) {
             Mage::register('add_product', '1');
             Mage::getSingleton('checkout/session')->getMessages(true);
@@ -309,7 +357,8 @@ class Magestore_Auction_Model_Event {
         }
     }
 
-    public function quote_item_save_before($observer) {
+    public function quote_item_save_before($observer)
+    {
         if (Mage::getSingleton('core/session')->getData('checkout_auction') == true) {
             Mage::getSingleton('core/session')->setData('checkout_auction', false);
             return;
@@ -328,9 +377,10 @@ class Magestore_Auction_Model_Event {
         }
     }
 
-    public function ajaxUpdateCartBefore($observer) {
+    public function ajaxUpdateCartBefore($observer)
+    {
         $action = $observer->getEvent()->getControllerAction();
-        $id = (int) $action->getRequest()->getParam('id');
+        $id = (int)$action->getRequest()->getParam('id');
         $quote = Mage::getSingleton('checkout/session')->getQuote();
         $items = $quote->getAllItems();
         foreach ($items as $item) {
@@ -349,9 +399,10 @@ class Magestore_Auction_Model_Event {
         }
     }
 
-    public function updateItemOptionsCartBefore($observer) {
+    public function updateItemOptionsCartBefore($observer)
+    {
         $action = $observer->getEvent()->getControllerAction();
-        $id = (int) $action->getRequest()->getParam('id');
+        $id = (int)$action->getRequest()->getParam('id');
         $quote = Mage::getSingleton('checkout/session')->getQuote();
         $items = $quote->getAllItems();
         foreach ($items as $item) {
@@ -368,7 +419,8 @@ class Magestore_Auction_Model_Event {
         }
     }
 
-    public function after_save_order($observer) {
+    public function after_save_order($observer)
+    {
         if (!Mage::registry('check_transaction')) {
             Mage::register('check_transaction', '1');
             $order = $observer->getEvent()->getOrder();
@@ -378,35 +430,36 @@ class Magestore_Auction_Model_Event {
             foreach ($items as $item) {
 
                 //               start customize
+                $isPaid = $order->getBaseTotalDue();
                 $orderId = $order->getId();
 
                 $productId = $item->getProduct()->getId();
                 $sku = Mage::getModel('catalog/product')->load($productId)->getSku();
-                if(Mage::helper('auction')->isAuctionPackage($sku)){
-                    $customerId = Mage::getSingleton('customer/session')->getId();
-                    $qty = $item->getQty();
-                    $vitualProductPrice = 10;
-                    $buy_data = array(
-                        'customer_id' => $customerId,
-                        'product_id'  => $productId,
-                        'sku' => $sku,
-                        'qty' => $qty,
-                        'order_id' => $orderId,
-                    );
-                    Mage::getModel('auction/buypackage')->setData($buy_data)->save();
-                    $productAuctionId = Mage::helper('auction')->getProductAuctionIdBySku($sku);
-                    $productAuction = Mage::getModel('auction/productauction')->load($productAuctionId);
-                    $bidAuction = Mage::getModel('auction/auction')->getCollection()
-                        ->addFieldToFilter('productauction_id', $productAuctionId)
-                        ->setOrder('auctionbid_id', 'DESC')
-                        ->getFirstItem();
-//                    $oldPrice = $bidAuction->getPrice();
-                    $oldStartPrice = $productAuction->setPrice();
-                    $newStartPrice = $oldStartPrice - $vitualProductPrice*$qty;
-                    if($newStartPrice < 0) $newStartPrice = 0;
-
+                $isAuctionPackage = Mage::helper('auction')->isAuctionPackage($sku);
+                if (($isPaid == 0) && $isAuctionPackage) {
+                    if (Mage::helper('auction')->isAuctionPackage($sku)) {
+                        $customerId = Mage::getSingleton('customer/session')->getId();
+                        $qty = $item->getQty();
+                        $vitualProductPrice = 10;
+//                        $vitualProductPrice = $item->getProduct()->getPrice();
+                        $buy_data = array(
+                            'customer_id' => $customerId,
+                            'product_id' => $productId,
+                            'sku' => $sku,
+                            'qty' => $qty,
+                            'order_id' => $orderId,
+                        );
+                        Mage::getModel('auction/buypackage')->setData($buy_data)->save();
+                        $productAuctionId = Mage::helper('auction')->getProductAuctionIdBySku($sku);
+                        $productAuction = Mage::getModel('auction/productauction')->load($productAuctionId);
+                        if ($productAuction->getStatus < 4) {
+                            $oldStartPrice = $productAuction->getInitPrice();
+                            $newStartPrice = $oldStartPrice - $vitualProductPrice * $qty;
+                            if ($newStartPrice < 0) $newStartPrice = 0;
+                            $productAuction->setInitPrice($newStartPrice)->save();
+                        }
+                    }
                 }
-
                 //               end customize
 
                 $bidId = $item->getOptionByCode('bid_id');
@@ -418,9 +471,9 @@ class Magestore_Auction_Model_Event {
                         $bid->save();
                         $transactionModel = Mage::getModel('auction/transaction');
                         $transactionModel->setOrderId($order->getId())
-                                ->setProductauctionId($bid->getProductauctionId())
-                                ->setTransactionPrice($bid->getPrice())
-                                ->save();
+                            ->setProductauctionId($bid->getProductauctionId())
+                            ->setTransactionPrice($bid->getPrice())
+                            ->save();
                     } catch (Exception $e) {
                         Mage::log($e->getMessage(), null, 'auction.log');
                     }
@@ -429,7 +482,8 @@ class Magestore_Auction_Model_Event {
         }
     }
 
-    public function change_config_auction($observer) {
+    public function change_config_auction($observer)
+    {
         $website = $observer->getEvent()->getWebsite();
         $store = $observer->getEvent()->getStore();
         if (Mage::app()->getStore($store)->getId() > 0) {

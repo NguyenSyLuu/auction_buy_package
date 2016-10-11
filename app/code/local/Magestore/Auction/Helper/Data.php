@@ -3,11 +3,13 @@
 class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
 
     public function buyPackage($customerId, $productAuctionId){
+        $sku = "auction_".$productAuctionId;
         $buyPackage = Mage::getModel('auction/buypackage')->getCollection()
         ->addFieldToFilter('customer_id', $customerId)
-        ->addFieldToFilter('productauction_id', $productAuctionId)
+        ->addFieldToFilter('sku', $sku)
+        ->setOrder('auction_buy_id', DESC)
         ->getFirstItem();
-        if($buyPackage->getId()){
+        if($buyPackage->getAuctionBuyId()){
             return true;
         }else{
             return false;

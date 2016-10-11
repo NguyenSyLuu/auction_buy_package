@@ -316,6 +316,17 @@
                     </magestore_auction_observer>
                 </observers>				
             </catalog_product_save_after>
+            <!--//start customer-->
+            <sales_order_invoice_pay>
+                <observers>
+                    <magestore_auction_observer>
+                        <type>singleton</type>
+                        <class>auction/event</class>
+                        <method>sales_order_invoice_pay</method>
+                    </magestore_auction_observer>
+                </observers>
+            </sales_order_invoice_pay>
+            <!--end customerize-->
         </events>		
     </global>
     <default>

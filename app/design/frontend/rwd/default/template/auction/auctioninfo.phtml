@@ -36,7 +36,7 @@
 				<td class="value bidder" id="bidder">
 					<?php echo $lastBid ? $lastBid->getBidderName() : $this->__('None') ?>
 				</td>
-			</tr>		
+			</tr>
 			<tr class="row">
 				<td class="title"><?php echo $this->__('Starting Price')?>:</td>
 				<td class="value init-price"><?php echo Mage::helper('core')->currency($auction->getInitPrice()) ?></td>
