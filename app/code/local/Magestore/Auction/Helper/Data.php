@@ -1,45 +1,53 @@
 <?php
 
-class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
+class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract
+{
 
-    public function buyPackage($customerId, $productAuctionId){
-        $sku = "auction_".$productAuctionId;
+    public function buyPackage($customerId, $productAuctionId)
+    {
+        $sku = "auction_" . $productAuctionId;
         $buyPackage = Mage::getModel('auction/buypackage')->getCollection()
-        ->addFieldToFilter('customer_id', $customerId)
-        ->addFieldToFilter('sku', $sku)
-        ->setOrder('auction_buy_id', DESC)
-        ->getFirstItem();
-        if($buyPackage->getAuctionBuyId()){
+            ->addFieldToFilter('customer_id', $customerId)
+            ->addFieldToFilter('sku', $sku)
+            ->setOrder('auction_buy_id', DESC)
+            ->getFirstItem();
+        if ($buyPackage->getAuctionBuyId()) {
             return true;
-        }else{
+        } else {
             return false;
         }
 
     }
-    public function isAuctionPackage($sku) {
-        $prefix = substr($sku, 0,7);
-        if($prefix == "auction"){
+
+    public function isAuctionPackage($sku)
+    {
+        $prefix = substr($sku, 0, 7);
+        if ($prefix == "auction") {
             return true;
-        }else{
+        } else {
             return false;
         }
     }
 
-    public function getProductAuctionIdBySku($sku) {
-        $product_auction_id = trim($sku,"auction_");
+    public function getProductAuctionIdBySku($sku)
+    {
+        $product_auction_id = trim($sku, "auction_");
         return $product_auction_id;
     }
 
-    public function getAuctionUrl() {
+    public function getAuctionUrl()
+    {
         $url = $this->_getUrl("auction/index", array());
         return $url;
     }
 
-    public function getChangeProductUrl() {
+    public function getChangeProductUrl()
+    {
         return $this->_getUrl('*/auction_productauction/changeproduct', array('_secure' => true));
     }
 
-    public function checkValidBidPrice($price, $auction, $type) {
+    public function checkValidBidPrice($price, $auction, $type)
+    {
         $price = floatval($price);
 
         if ($price > 100000000) {
@@ -60,11 +68,12 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
         return true;
     }
 
-    public function getProductAuctionIds($store_id = 0, $featured = null) {
+    public function getProductAuctionIds($store_id = 0, $featured = null)
+    {
         $IDs = array();
         $productIds = array();
         $collection = Mage::getModel('auction/productauction')->getCollection()
-                ->addFieldToFilter('status', array('in' => array(4)));
+            ->addFieldToFilter('status', array('in' => array(4)));
         if ($featured) {
             $collection->addFieldToFilter('featured', '1');
         }
@@ -76,9 +85,9 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
         //multi stores
         if ($store_id) {
             $collection = Mage::getResourceModel('auction/value_collection')
-                    ->addFieldToFilter('product_id', array('in' => $IDs))
-                    ->addFieldToFilter('store_id', $store_id)
-                    ->addFieldToFilter('is_applied', array('neq' => 2)) //not user
+                ->addFieldToFilter('product_id', array('in' => $IDs))
+                ->addFieldToFilter('store_id', $store_id)
+                ->addFieldToFilter('is_applied', array('neq' => 2)) //not user
             ;
             if (count($collection)) {
                 foreach ($collection as $item) {
@@ -92,9 +101,10 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
         return $IDs;
     }
 
-    public function updateAuctionStatus($auction_id = null) {
+    public function updateAuctionStatus($auction_id = null)
+    {
         $collection = Mage::getModel('auction/productauction')->getCollection()
-                ->addFieldToFilter('status', array('nin' => array(2, 5, 6)));
+            ->addFieldToFilter('status', array('nin' => array(2, 5, 6)));
 
         if ($auction_id)
             $collection->addFieldToFilter('productauction_id', $auction_id);
@@ -113,19 +123,39 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
                     //send complete auction email
                     /* Mage::helper('auction/email')->sendAuctionCompleteEmail($item); */
                 }
+                /*set visible or not visible product*/
+                if ($status == 4) {
+                    $productVirtualId = $this->getVirtualproductId($item->getId());
+                    $product = Mage::getModel('catalog/product')->load($productVirtualId);
+                    $product->setVisibility(Mage_Catalog_Model_Product_Visibility::VISIBILITY_NOT_VISIBLE);
+                    // from Mage_Catalog_Model_Product_Visibility:
+                    // const VISIBILITY_NOT_VISIBLE    = 1;
+                    // const VISIBILITY_IN_CATALOG     = 2;
+                    // const VISIBILITY_IN_SEARCH      = 3;
+                    // const VISIBILITY_BOTH           = 4;
+                    $product->save();
+                }
             }
         } catch (Exception $e) {
-            
+
         }
     }
 
-    public function updateBisStatus($auction_id) {
+    public function getVirtualproductId($productAuctionId)
+    {
+        $sku = 'auction_'.$productAuctionId;
+        $_product = Mage::getModel('catalog/product')->loadByAttribute('sku',$sku);
+        return $_product->getId();
+
+    }
+
+    public function updateBisStatus($auction_id)
+    {
         $auction = Mage::getModel('auction/productauction')->load($auction_id);
         $collection = Mage::getModel('auction/auction')->getCollection()
-                ->addFieldToFilter('status', array('nin' => array(2)))
-                ->addFieldToFilter('productauction_id', $auction_id)
-                ->setOrder('auctionbid_id', 'DESC')
-        ;
+            ->addFieldToFilter('status', array('nin' => array(2)))
+            ->addFieldToFilter('productauction_id', $auction_id)
+            ->setOrder('auctionbid_id', 'DESC');
 
         if (!count($collection))
             return;
@@ -162,17 +192,18 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
             Mage::helper('auction/email')->sendAuctionCompleteEmail($auction);
     }
 
-    public function autoUpdateBidStatus($auction_id) {
+    public function autoUpdateBidStatus($auction_id)
+    {
         $collection = Mage::getModel('auction/auction')->getCollection()
-                ->addFieldToFilter('status', array('nin' => array(2)))
-                ->addFieldToFilter('productauction_id', $auction_id)
-                ->setOrder('auctionbid_id', 'DESC');
+            ->addFieldToFilter('status', array('nin' => array(2)))
+            ->addFieldToFilter('productauction_id', $auction_id)
+            ->setOrder('auctionbid_id', 'DESC');
 
         if (!count($collection))
             return;
 
         $auction = Mage::getModel('auction/productauction')
-                ->load($auction_id);
+            ->load($auction_id);
         if ($auction->getStatus() <= 4)
             $status = 3;
         else
@@ -200,19 +231,22 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
             Mage::helper('auction/email')->noticeOutBid($auction);
     }
 
-    public function getListBuyoutStatus() {
+    public function getListBuyoutStatus()
+    {
         return array(1 => $this->__('Yes'),
             2 => $this->__('No'),
         );
     }
 
-    public function getListFeaturedStatus() {
+    public function getListFeaturedStatus()
+    {
         return array(1 => $this->__('Yes'),
             2 => $this->__('No'),
         );
     }
 
-    public function getListBidStatus() {
+    public function getListBidStatus()
+    {
         return array(1 => $this->__('Enabled'),
             2 => $this->__('Disabled'),
             3 => $this->__('Waiting'),
@@ -222,7 +256,8 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
         );
     }
 
-    public function getListAuctionStatus() {
+    public function getListAuctionStatus()
+    {
         return array(1 => $this->__('Enabled'),
             2 => $this->__('Disabled'),
             3 => $this->__('Not Start'),
@@ -232,7 +267,8 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
         );
     }
 
-    public function getOptionStatus() {
+    public function getOptionStatus()
+    {
         return array(array('value' => 1, 'label' => $this->__('Enabled')),
             array('value' => 2, 'label' => $this->__('Disabled')),
             array('value' => 3, 'label' => $this->__('Not Start')),
@@ -242,10 +278,11 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
         );
     }
 
-    public function isAuctionProduct($product_id) {
+    public function isAuctionProduct($product_id)
+    {
         $collection = Mage::getModel('auction/productauction')->getCollection()
-                ->addFieldToFilter('product_id', $product_id)
-                ->setOrder('productauction_id', 'DESC');
+            ->addFieldToFilter('product_id', $product_id)
+            ->setOrder('productauction_id', 'DESC');
 
         if (!count($collection))
             return false;
@@ -258,7 +295,8 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
         return false;
     }
 
-    public function getAuctionStatus($auction_id) {
+    public function getAuctionStatus($auction_id)
+    {
         $productauction = Mage::getModel('auction/productauction')->load($auction_id);
 
         $timestamp = Mage::getModel('core/date')->timestamp(time());
@@ -318,29 +356,33 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
         }
     }
 
-    public function getWinnerBids($auction_id) {
+    public function getWinnerBids($auction_id)
+    {
         if ($this->getAuctionStatus($auction_id) != 5) //not end
             return null;
 
         $winnerBids = Mage::getModel('auction/auction')->getCollection()
-                ->addFieldToFilter('productauction_id', $auction_id)
-                ->addFieldToFilter('status', 5)
-                ->setOrder('auctionbid_id', 'DESC');
+            ->addFieldToFilter('productauction_id', $auction_id)
+            ->addFieldToFilter('status', 5)
+            ->setOrder('auctionbid_id', 'DESC');
 
         return $winnerBids;
     }
 
-    public function getAuctionTimeLeft($auction_id) {
+    public function getAuctionTimeLeft($auction_id)
+    {
         $auction = Mage::getModel('auction/productauction')->load($auction_id);
 
         return $auction->getTimeLeft();
     }
 
-    public function convertMysqlDate($date) {
+    public function convertMysqlDate($date)
+    {
         return substr($date, 5, 3) . substr($date, -2, 2) . '-' . substr($date, 0, 4);
     }
 
-    public function getTablePrefix() {
+    public function getTablePrefix()
+    {
         $table = Mage::getResourceSingleton("eav/entity_attribute")->getTable("eav/attribute");
 
         $prefix = str_replace("eav_attribute", "", $table);
@@ -348,28 +390,29 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
         return $prefix;
     }
 
-    public function encodeBidderName($auction, $customer) {
+    public function encodeBidderName($auction, $customer)
+    {
         $storeId = Mage::app()->getStore()->getId();
 
         $biddername_prefix = Mage::getStoreConfig('auction/general/bidder_name_prefix', $storeId);
 
         $bid = Mage::getResourceModel('auction/auction_collection')
-                ->addFieldToFilter('productauction_id', $auction->getId())
-                ->addFieldToFilter('customer_id', $customer->getId())
-                ->addFieldToFilter('bidder_name', array('like' => $biddername_prefix . '%'))
-                ->addFieldToFilter('store_id', $storeId)
-                ->getFirstItem();
+            ->addFieldToFilter('productauction_id', $auction->getId())
+            ->addFieldToFilter('customer_id', $customer->getId())
+            ->addFieldToFilter('bidder_name', array('like' => $biddername_prefix . '%'))
+            ->addFieldToFilter('store_id', $storeId)
+            ->getFirstItem();
 
         if (count($bid->getId())) {
             return $bid->getBidderName();
         } else {
 
             $bid = Mage::getResourceModel('auction/auction_collection')
-                    ->addFieldToFilter('productauction_id', $auction->getId())
-                    ->addFieldToFilter('bidder_name', array('like' => $biddername_prefix . '%'))
-                    ->addFieldToFilter('store_id', $storeId)
-                    ->setOrder('auctionbid_id', 'DESC')
-                    ->getFirstItem();
+                ->addFieldToFilter('productauction_id', $auction->getId())
+                ->addFieldToFilter('bidder_name', array('like' => $biddername_prefix . '%'))
+                ->addFieldToFilter('store_id', $storeId)
+                ->setOrder('auctionbid_id', 'DESC')
+                ->getFirstItem();
 
             if ($bid->getId()) {
                 $no = intval(trim(str_replace($biddername_prefix, '', $bid->getBidderName())));
@@ -380,27 +423,27 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
         }
     }
 
-    public function getMultiWinnerBid($auction_id) {
+    public function getMultiWinnerBid($auction_id)
+    {
         if ($this->getAuctionStatus($auction_id) != 5) //not end
             return null;
 
         $auction = Mage::getModel('auction/productauction')->load($auction_id);
 
         $items = Mage::getModel('auction/auction')->getCollection()
-                ->addFieldToFilter('productauction_id', $auction_id)
-                ->addFieldToFilter('status', array('neq' => 2))
-                ->setOrder('auctionbid_id', 'DESC')
-        ;
+            ->addFieldToFilter('productauction_id', $auction_id)
+            ->addFieldToFilter('status', array('neq' => 2))
+            ->setOrder('auctionbid_id', 'DESC');
 
 
         $items->getSelect()
-                ->limit($auction->getMultiWinner())
-        ;
+            ->limit($auction->getMultiWinner());
 
         return $items;
     }
 
-    public function getBidderStatus() {
+    public function getBidderStatus()
+    {
         $status = Mage::getStoreConfig('auction/general/bidder_status', $this->getStoreId());
         if ($status == 1)
             return true;
@@ -422,38 +465,42 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
       }
      */
 
-    public function getStoreId() {
+    public function getStoreId()
+    {
         return Mage::app()->getStore()->getId();
     }
 
-    public function getAddditionTime() {
+    public function getAddditionTime()
+    {
         $storeId = $this->getStoreId();
         return Mage::getStoreConfig('auction/auction_time/add_time', $storeId) ? Mage::getStoreConfig('auction/auction_time/add_time', $storeId) : '60';
     }
 
-    public function getNextAutobidToRun($auction, $currentAutobid) {
+    public function getNextAutobidToRun($auction, $currentAutobid)
+    {
         $autobids = Mage::getModel('auction/autobid')->getCollection()
-                ->addFieldToFilter('productauction_id', $auction->getId())
-                ->addFieldToFilter('created_time', array('datetime' => true, 'from' => $currentAutobid->getCreatedTime()))
-                ->addFieldToFilter('autobid_id', array('neq' => $currentAutobid->getId()))
-                ->addFieldToFilter('price', array('gteq' => $auction->getMinNextPrice()))
-                ->setOrder('created_time', 'ASC');
+            ->addFieldToFilter('productauction_id', $auction->getId())
+            ->addFieldToFilter('created_time', array('datetime' => true, 'from' => $currentAutobid->getCreatedTime()))
+            ->addFieldToFilter('autobid_id', array('neq' => $currentAutobid->getId()))
+            ->addFieldToFilter('price', array('gteq' => $auction->getMinNextPrice()))
+            ->setOrder('created_time', 'ASC');
 
         //print_r(count($autobids));die();
         if (count($autobids)) {
             $autobid = $autobids->getFirstItem();
         } else {// get autobid at tail list, return head list 
             $autobid = Mage::getModel('auction/autobid')->getCollection()
-                    ->addFieldToFilter('productauction_id', $auction->getId())
-                    ->addFieldToFilter('price', array('gteq' => $auction->getMinNextPrice()))
-                    ->setOrder('created_time', 'ASC')
-                    ->getFirstItem();
+                ->addFieldToFilter('productauction_id', $auction->getId())
+                ->addFieldToFilter('price', array('gteq' => $auction->getMinNextPrice()))
+                ->setOrder('created_time', 'ASC')
+                ->getFirstItem();
         }
 
         return $autobid;
     }
 
-    public function getLoginButtonImage() {
+    public function getLoginButtonImage()
+    {
         $storeId = Mage::app()->getStore()->getId();
         $imageName = Mage::getStoreConfig('auction/auction_image/image_login', $storeId);
         $imgSrc = '';
@@ -463,7 +510,8 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
         return $imgSrc;
     }
 
-    public function getBidButtonImage() {
+    public function getBidButtonImage()
+    {
         $storeId = Mage::app()->getStore()->getId();
         $imgSrc = '';
         $imageName = Mage::getStoreConfig('auction/auction_image/image_bid', $storeId);
@@ -473,7 +521,8 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
         return $imgSrc;
     }
 
-    public function getCreateBidNameButtonImage() {
+    public function getCreateBidNameButtonImage()
+    {
         $storeId = Mage::app()->getStore()->getId();
         $imgSrc = '';
         $imageName = Mage::getStoreConfig('auction/auction_image/image_create_bid_name', $storeId);
@@ -483,7 +532,8 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
         return $imgSrc;
     }
 
-    public function getWatchButtonImage() {
+    public function getWatchButtonImage()
+    {
         $storeId = Mage::app()->getStore()->getId();
         $imgSrc = '';
         $imageName = Mage::getStoreConfig('auction/auction_image/image_watch', $storeId);
@@ -493,7 +543,8 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
         return $imgSrc;
     }
 
-    public function getStopWatchingButtonImage() {
+    public function getStopWatchingButtonImage()
+    {
         $storeId = Mage::app()->getStore()->getId();
         $imgSrc = '';
         $imageName = Mage::getStoreConfig('auction/auction_image/image_stopwatching', $storeId);
@@ -508,7 +559,8 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
      * and send mail to all bider when status be changed complete
      * PS: Use in file ProductauctionController.php
      */
-    public function setStautsAution($stauts, $id) {
+    public function setStautsAution($stauts, $id)
+    {
 
         if ($stauts == 6) {
             $model = Mage::getModel('auction/productauction')->load($id);
@@ -530,20 +582,24 @@ class Magestore_Auction_Helper_Data extends Mage_Core_Helper_Abstract {
         }
     }
 
-    public function returntext() {
+    public function returntext()
+    {
         return 'Featured Auction box can be placed on different positions on your website by using one of the following options below:</br>
                 Note: These options are recommended for developers. You shouldn\'t add them on the auction listing page either.';
     }
-    
-    public function returnblock() {
+
+    public function returnblock()
+    {
         return '&nbsp;&nbsp{{block type="auction/list" template="auction/featuredauction.phtml"}}<br>';
     }
-    
-    public function returntemplate() {
+
+    public function returntemplate()
+    {
         return "&nbsp;\$this->getLayout()->createBlock('auction/list')->setTemplate('auction/featuredauction.phtml')<br/>&nbsp;&nbsp;->tohtml();";
     }
-    
-    public function returnlayout() {
+
+    public function returnlayout()
+    {
         return '&nbsp;&lt;block name="featuredauctions" type="auction/list" template="auction/featuredauction.phtml"/&gt<br/>';
     }
 

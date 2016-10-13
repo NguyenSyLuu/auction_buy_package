@@ -9,7 +9,26 @@ class Magestore_Auction_IndexController extends Mage_Core_Controller_Front_Actio
         $time = $productAuction->getEndTime();
         $end = strtotime($date.$time);
         echo date("Y-m-d H:i:s", $timestamp);
-        Zend_Debug::dump($timestamp);
+        /*set visible or not visible product*/
+//        $product = Mage::getModel('catalog/product')->load(2);
+//        $product->setVisibility(Mage_Catalog_Model_Product_Visibility::VISIBILITY_NOT_VISIBLE);
+//        // from Mage_Catalog_Model_Product_Visibility:
+//        // const VISIBILITY_NOT_VISIBLE    = 1;
+//        // const VISIBILITY_IN_CATALOG     = 2;
+//        // const VISIBILITY_IN_SEARCH      = 3;
+//        // const VISIBILITY_BOTH           = 4;
+//        $product->save();
+
+/*set out stock and qty = 0*/
+//        $stockItem = Mage::getModel('cataloginventory/stock_item')->load(2);
+//        $stockItem->setData('manage_stock', 1);
+//        $stockItem->setData('is_in_stock', 1);
+//        $stockItem->setData('use_config_notify_stock_qty', 0);
+//        $stockItem->setData('qty', 10);
+//        $stockItem->save();
+
+        $result = Mage::helper('auction')->getVirtualproductId(1);
+        Zend_Debug::dump($result);
     }
     public function indexAction() {
         if (Mage::getStoreConfig('auction/general/bidder_status') != 1) {

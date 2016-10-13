@@ -371,7 +371,7 @@ class Magestore_Auction_Model_Event
         $item = $observer['item'];
         $bidId = $item->getOptionByCode('bid_id');
         if ($bidId != null && $bidId->getValue() > 0) {
-            $item->setQty(1);
+//            $item->setQty(1);
             Mage::getSingleton('checkout/session')->getMessages(true);
             Mage::getSingleton('checkout/session')->addError(Mage::helper('auction')->__('You cannot update the quantity of autioned product(s).'));
         }
