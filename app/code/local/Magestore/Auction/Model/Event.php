@@ -14,8 +14,8 @@ class Magestore_Auction_Model_Event
             $isAuctionPackage = Mage::helper('auction')->isAuctionPackage($sku);
             if ($isAuctionPackage) {
                 $qty = $item->getQty();
-                $vitualProductPrice = 10;
-//                        $vitualProductPrice = $item->getProduct()->getPrice();
+//                $vitualProductPrice = 10;
+                  $vitualProductPrice = $item->getPrice();
                 $buy_data = array(
                     'customer_id' => $customerId,
                     'product_id' => $productId,
